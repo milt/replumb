@@ -51,14 +51,21 @@
   ([state ns]
    {:pre [(symbol? ns)]}
    (->> (merge
-          (get-in @state [::ana/namespaces ns :macros])
-          (get-in @state [::ana/namespaces ns :defs]))
+         (get-in @state [::ana/namespaces ns :macros])
+         (get-in @state [::ana/namespaces ns :defs]))
         (remove (fn [[k v]] (:private v)))
         (into {}))))
 
 (defn get-namespace
+  "Given a namespace symbol, returns its AST"
   [sym]
   (get-in @st [:cljs.analyzer/namespaces sym]))
+
+(defn get-empty-aenv
+  []
+  (assoc (ana/empty-env)
+         :ns (get-namespace (:current-ns @app-env))
+         :context :expr))
 
 (defn get-goog-path
   "Given a Google Closure provide / Clojure require (e.g. goog.string),
@@ -551,14 +558,14 @@
   [opts cb data env sym]
   (let [var (get-var opts env sym)
         call-back (partial call-back! (merge opts {:no-pr-str-on-value true}) cb data)]
-    (if-let [filepath (or (:file var) (:file (:meta var)))]
+    (if-let [file-path (or (:file var) (:file (:meta var)))]
       (let [src-paths (:src-paths opts)
             ;; see discussion here: https://github.com/ScalaConsultants/replumb/issues/17#issuecomment-163832028
             ;; if (symbol? filepath) is true, filepath will contain the symbol of a namespace
             ;; eg. clojure.set
-            paths-to-try (if (symbol? filepath)
-                           (load/file-paths-to-try-from-ns-symbol filepath src-paths)
-                           (map #(str (common/normalize-path %) filepath) src-paths))]
+            paths-to-try (if (symbol? file-path)
+                           (load/file-paths-to-try-from-ns-symbol src-paths file-path)
+                           file-path)]
         (fetch-source opts var paths-to-try call-back))
       (call-back (common/wrap-success "nil")))))
 
@@ -572,18 +579,16 @@
 
 (defn process-repl-special
   [opts cb data expression-form]
-  (let [env (assoc (ana/empty-env) :context :expr
-                   :ns {:name (:current-ns @app-env)})
-        argument (second expression-form)]
+  (let [argument (second expression-form)]
     (case (first expression-form)
       in-ns (process-in-ns opts cb data argument)
       require (process-require opts cb data :require (rest expression-form))
       require-macros (process-require opts cb data :require-macros (rest expression-form))
       import (process-require opts cb data :import (rest expression-form))
-      doc (process-doc opts cb data env argument)
-      source (process-source opts cb data env argument)
+      doc (process-doc opts cb data (get-empty-aenv) env argument)
+      source (process-source opts cb data (get-empty-aenv) argument)
       pst (process-pst opts cb data argument)
-      dir (process-dir opts cb data env argument)
+      dir (process-dir opts cb data (get-empty-aenv) argument)
       load-file (call-back! opts cb data (common/error-keyword-not-supported "load-file" ex-info-data))))) ;; (process-load-file argument opts)
 
 (defn process-1-2-3

@@ -228,7 +228,7 @@
 (def valid-opts-set
   "Set of valid option used for external input validation."
   #{:verbose :warning-as-error :target :init-fn!
-    :load-fn! :read-file-fn! :src-paths})
+    :load-fn! :read-file-fn! :src-paths :enable-stacktrace})
 
 (defn valid-opts
   "Validate the input user options. Returns a new map without invalid
@@ -292,15 +292,20 @@
     :warning warning
     :value (if-not (:no-pr-str-on-value opts)
              (pr-str value)
-             value)}))
+             value)
+    :print-stack? false}))
 
 (defn error-map
-  "Builds the map to return when the evaluation returned error."
+  "Builds the map to return when the evaluation returned error.
+  Supports the following options:
+
+  * :enable-stacktrace indicates whether add a stack trace in case of an error"
   ([opts form warning error]
    {:success? false
     :form form
     :warning warning
-    :error error}))
+    :error error
+    :print-stack? (:enable-stacktrace opts)}))
 
 (defn reset-last-warning!
   []
@@ -394,6 +399,7 @@
   Call-back! supports the following opts:
 
   * :verbose will enable the the evaluation logging, defaults to false.
+  * :enable-stacktrace will add a stack trace in case of an error
   * :no-pr-str-on-value avoids wrapping successful value in a pr-str
   * :warning-as-error will consider a warning like an error
 
@@ -744,6 +750,7 @@
   supporting:
 
   * :verbose - will enable the the evaluation logging, defaults to false
+  * :enable-stacktrace - if true, will add a stack trace in case of an error
   * :warning-as-error - will consider a compiler warning as error
   * :target - :nodejs and :browser supported, the latter is used if
   missing
@@ -771,11 +778,12 @@
 
   Therefore, given cb (fn [result-map] ...), the main map keys are:
 
-  :success? ;; a boolean indicating if everything went right
-  :value    ;; (if (success? result)) will contain the actual yield of the evaluation
-  :error    ;; (if (not (success? result)) will contain a js/Error
-  :warning  ;; in case a warning was thrown and :warning-as-error is falsey
-  :form     ;; the evaluated form as data structure (not a string)
+  :success?     ;; a boolean indicating if everything went right
+  :value        ;; (if (success? result)) will contain the actual yield of the evaluation
+  :error        ;; (if (not (success? result)) will contain a js/Error
+  :print-stack? ;; a boolean indicating whether add the stack trace in case of error
+  :warning      ;; in case a warning was thrown and :warning-as-error is falsey
+  :form         ;; the evaluated form as data structure (not a string)
 
   The third parameter is the source string to be read and evaluated.
 

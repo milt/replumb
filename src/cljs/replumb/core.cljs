@@ -11,6 +11,7 @@
   supporting:
 
   * `:verbose` will enable the the evaluation logging, defaults to false
+  * `:enable-stacktrace` will add a stack trace in case of an error
   * `:warning-as-error` will consider a compiler warning as error
   * `:target` `:nodejs` and `:browser` supported, the latter is used if
   missing
@@ -60,11 +61,12 @@
   the result map, whose result keys will be:
 
   ```
-  :success?  ;; a boolean indicating if everything went right
-  :value     ;; (if (success? result)) will contain the actual yield of the evaluation
-  :error     ;; (if (not (success? result)) will contain a js/Error
-  :warning   ;; in case a warning was thrown and :warning-as-error is falsey
-  :form      ;; the evaluated form as data structure (not a string)
+  :success?     ;; a boolean indicating if everything went right
+  :value        ;; (if (success? result)) will contain the actual yield of the evaluation
+  :error        ;; (if (not (success? result)) will contain a js/Error
+  :print-stack? ;; indicates whether add the stack trace in case of error
+  :warning      ;; in case a warning was thrown and :warning-as-error is falsey
+  :form         ;; the evaluated form as data structure (not a string)
   ```
 
   The third parameter is the source string to be read and evaluated.
@@ -113,15 +115,11 @@
   "Given a `result-map`, returns the result of the evaluation as string.
 
   - When `include-warning?` is true, then the string yields from, in
-  order, `:error`, then `:warning` and then eventually `:value`.
-  - When `print-stack?` is true, the error string will include the stack
-  trace."
+  order, `:error`, then `:warning` and then eventually `:value`."
   ([result-map]
-   (result->string result-map false false))
-  ([result-map print-stack?]
-   (result->string result-map print-stack? false))
-  ([result-map print-stack? include-warning?]
-   (let [{:keys [error value warning]} result-map]
+   (result->string result-map false))
+  ([result-map include-warning?]
+   (let [{:keys [error value warning print-stack?]} result-map]
      (if error
        (common/extract-message error false print-stack?)
        (if (and include-warning? warning)

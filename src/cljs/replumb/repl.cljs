@@ -603,12 +603,15 @@
     (loop [first-form first-form
            second-form second-form]
       (when-not (identical? eof first-form)
-        (if (identical? eof second-form)
-          ;; evaluate the last expression, call cb and set the previous namespace
-          (read-eval-call opts cb (assoc load-file-opts :orig-ns ns) (str first-form))
-          (do
-            (read-eval-call opts identity load-file-opts (str first-form))
-            (recur second-form (read))))))))
+        (try
+          (if (identical? eof second-form)
+            ;; evaluate the last expression, call cb and set the previous namespace
+            (read-eval-call opts cb (assoc load-file-opts :orig-ns ns) (str first-form))
+            (do
+              (read-eval-call opts identity load-file-opts (str first-form))
+              (recur second-form (read))))
+          (catch :default e
+            (call-back! opts cb {} (common/wrap-error e))))))))
 
 (defn process-load-file
   [{:keys [verbose read-file-fn! src-paths] :as opts} cb data filename]
@@ -845,11 +848,13 @@
                                         (merge data
                                                {:on-success-fn! #(do
                                                                    (process-1-2-3 data expression-form (:value res))
-                                                                   (swap! app-env assoc :current-ns (or orig-ns (:ns res))))})
+                                                                   (swap! app-env assoc :current-ns (or orig-ns (:ns res))))
+                                                :on-error-fn! #(when load-file-opts (throw (:error res)))})
                                         res))))))
      (catch :default e
        (when (:verbose opts)
          (common/debug-prn "Exception caught in read-eval-call: " (.-stack e)))
+       (when load-file-opts (throw e))
        (call-back! opts cb {} (common/wrap-error e))))))
 
 (defn reset-env!

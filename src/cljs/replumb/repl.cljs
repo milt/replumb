@@ -115,16 +115,14 @@
   ([]
    (make-base-eval-opts! {}))
   ([opts]
-   (merge
-    {:ns (:current-ns @app-env)
-     :source-map false
-     :def-emits-var true
-     :load (:load-fn! opts)
-     :eval cljs/js-eval
-     :verbose (or (:verbose opts) false)
-     :static-fns false}
-    (when-not (:file? opts)
-      {:context :expr}))))
+   {:ns (:current-ns @app-env)
+    :context :expr
+    :source-map false
+    :def-emits-var true
+    :load (:load-fn! opts)
+    :eval cljs/js-eval
+    :verbose (or (:verbose opts) false)
+    :static-fns false}))
 
 (defn self-require?
   [specs]
@@ -597,28 +595,25 @@
 
 (defn process-loaded-file
   [opts cb {:keys [ns]} load-file-opts source]
-  (if (= :file (:strategy load-file-opts))
-    (read-eval-call opts cb load-file-opts source)
-    (let [rdr (rt/string-push-back-reader source)
-          eof (js-obj)
-          read #(r/read {:eof eof} rdr)
-          first-form (read)
-          second-form (read)]
-      (loop [first-form first-form
-             second-form second-form]
-        (when-not (identical? eof first-form)
-          (if (identical? eof second-form)
-            ;; evaluate the last expression, call cb and set the previous namespace
-            (read-eval-call opts cb (assoc load-file-opts :orig-ns ns) (str first-form))
-            (do
-              (read-eval-call opts identity load-file-opts (str first-form))
-              (recur second-form (read)))))))))
+  (let [rdr (rt/string-push-back-reader source)
+        eof (js-obj)
+        read #(r/read {:eof eof} rdr)
+        first-form (read)
+        second-form (read)]
+    (loop [first-form first-form
+           second-form second-form]
+      (when-not (identical? eof first-form)
+        (if (identical? eof second-form)
+          ;; evaluate the last expression, call cb and set the previous namespace
+          (read-eval-call opts cb (assoc load-file-opts :orig-ns ns) (str first-form))
+          (do
+            (read-eval-call opts identity load-file-opts (str first-form))
+            (recur second-form (read))))))))
 
 (defn process-load-file
   [{:keys [verbose read-file-fn! src-paths] :as opts} cb data filename]
   (let [call-back (partial call-back! opts cb data)
-        load-file-opts {:filename filename
-                        :strategy :expr}]
+        load-file-opts {:filename filename}]
     (if read-file-fn!
       (load/read-files-and-callback! verbose
                                      (load/file-paths src-paths filename)
@@ -825,10 +820,7 @@
   `read-eval-call`."
   ([opts cb source]
    (read-eval-call opts cb nil source))
-  ([opts cb {:keys [filename strategy orig-ns] :as  load-file-opts} source]
-   {:pre [(or (nil? load-file-opts)
-              (and (seq (:filename load-file-opts))
-                   (#{:file :expr} (:strategy load-file-opts))))]}
+  ([opts cb {:keys [filename orig-ns] :as load-file-opts} source]
    (try
      (let [expression-form (repl-read-string source)
            opts (normalize-opts opts) ;; AR - does the whole user option processing
@@ -839,13 +831,13 @@
        (when (:verbose opts)
          (common/debug-prn "Calling eval-str on" expression-form "with options" (common/filter-fn-keys opts)))
        (binding [ana/*cljs-warning-handlers* [(partial custom-warning-handler opts cb)]]
-         (if (and (or (nil? load-file-opts) (= :expr strategy)) (repl-special? expression-form))
+         (if (repl-special? expression-form)
            (process-repl-special opts cb data expression-form)
            (cljs/eval-str st
                           source
-                          (if (= :file strategy) (str "File " filename) source)
+                          source
                           ;; opts (map)
-                          (make-base-eval-opts! (assoc opts :file? (= :file strategy)))
+                          (make-base-eval-opts! opts)
                           (fn [res]
                             (when (:verbose opts)
                               (common/debug-prn "Evaluation returned: " res))
@@ -853,8 +845,7 @@
                                         (merge data
                                                {:on-success-fn! #(do
                                                                    (process-1-2-3 data expression-form (:value res))
-                                                                   (when-not (= :file strategy)
-                                                                     (swap! app-env assoc :current-ns (or orig-ns (:ns res)))))})
+                                                                   (swap! app-env assoc :current-ns (or orig-ns (:ns res))))})
                                         res))))))
      (catch :default e
        (when (:verbose opts)

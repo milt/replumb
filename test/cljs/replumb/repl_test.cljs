@@ -19,7 +19,12 @@
                     (core/options :browser load/fake-load-fn!))
       validated-echo-cb (partial repl/validated-call-back! target-opts echo-callback)
       reset-env! (partial repl/reset-env! target-opts)
-      read-eval-call (partial repl/read-eval-call target-opts validated-echo-cb)]
+      read-eval-call (partial repl/read-eval-call target-opts validated-echo-cb)
+      read-eval-call-no-resource (partial repl/read-eval-call (-> target-opts
+                                                                  (assoc :load-fn! load/no-resource-load-fn!)) validated-echo-cb)
+      read-eval-call-nil-read-file-fn (partial repl/read-eval-call (-> target-opts
+                                                                       (dissoc :load-fn!)
+                                                                       (assoc target-opts :read-file-fn! nil)) validated-echo-cb)]
 
   (deftest init
     ;; The init test heavily relies on repl execution order. If the repl is already

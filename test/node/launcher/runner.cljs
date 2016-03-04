@@ -5,9 +5,10 @@
             replumb.common-test
             replumb.load-test
             replumb.options-test
+            replumb.macro-test
             replumb.require-test
             replumb.source-test
-            #_replumb.cache-node-test))
+            #_replumb.cache-node-test)) ;; AR/TB TODO port it to the test
 
 (enable-console-print!)
 
@@ -16,6 +17,7 @@
            'replumb.common-test
            'replumb.load-test
            'replumb.options-test
+           'replumb.macro-test
            'replumb.require-test
            'replumb.source-test)
 

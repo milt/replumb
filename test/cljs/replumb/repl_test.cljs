@@ -440,45 +440,6 @@ select-keys
       (is (= "2" out) "Response is :value, no warning and warning-as-error is true symbol should return 2")
       (reset-env!)))
 
-  (deftest macros
-    ;; Implementing examples from Mike Fikes work at:
-    ;; http://blog.fikesfarm.com/posts/2015-09-07-messing-with-macros-at-the-repl.html
-    ;; (it's not that I don't trust Mike, you know)
-    (let [res (read-eval-call "(defmacro hello [x] `(inc ~x))")
-          out (unwrap-result res)]
-      (is (success? res) "(defmacro hello [x] `(inc ~x)) should succeed")
-      (is (valid-eval-result? out) "(defmacro hello [x] `(inc ~x)) should have a valid result")
-      (is (= "true" out) "(defmacro hello [x] `(inc ~x)) should return true")
-      (reset-env!))
-
-    (let [res (do (read-eval-call "(defmacro hello [x] `(inc ~x))")
-                  (read-eval-call "(hello nil nil 13)"))
-          out (unwrap-result res)]
-      (is (success? res) "(defmacro hello [x] `(inc ~x))\n(hello nil nil 13)\nshould succeed")
-      (is (valid-eval-result? out) "(defmacro hello [x] `(inc ~x))\n(hello nil nil 13)\nshould have a valid result")
-      (is (= "(cljs.core/inc 13)" out) "(defmacro hello [x] `(inc ~x))\n(hello nil nil 13)\nshould return (cljs.core/inc 13)")
-      (reset-env!))
-
-    (let [res (do (read-eval-call "(ns foo.core$macros)")
-                  (read-eval-call "(defmacro hello [x] (prn &form) `(inc ~x))")
-                  (read-eval-call "(foo.core/hello (+ 2 3))"))
-          out (unwrap-result res)]
-      (is (success? res) "(ns foo.core$macros)\n(defmacro hello [x] (prn &form) `(inc ~x))\n(foo.core/hello (+ 2 3)) should succeed")
-      (is (valid-eval-result? out) "(ns foo.core$macros)\n(defmacro hello [x] (prn &form) `(inc ~x))\n(foo.core/hello (+ 2 3)) should have a valid result")
-      (is (= "6" out) "(ns foo.core$macros)\n(defmacro hello [x] (prn &form) `(inc ~x))\n(foo.core/hello (+ 2 3)) should return 6")
-      (reset-env! '[foo.core]))
-
-    (let [res (do (read-eval-call "(ns foo.core$macros)")
-                  (read-eval-call "(defmacro hello [x] (prn &form) `(inc ~x))")
-                  (read-eval-call "(ns another.ns)")
-                  (read-eval-call "(require-macros '[foo.core :refer [hello]])")
-                  (read-eval-call "(hello (+ 2 3))"))
-          out (unwrap-result res)]
-      (is (success? res) "(ns foo.core$macros)\n(defmacro hello [x] (prn &form) `(inc ~x))\n(ns another.ns)\n(require-macros '[foo.core :refer [hello]])\n(hello (+ 2 3))\nshould succeed")
-      (is (valid-eval-result? out) "(ns foo.core$macros)\n(defmacro hello [x] (prn &form) `(inc ~x))\n(ns another.ns)\n(require-macros '[foo.core :refer [hello]])\n(hello (+ 2 3))\nshould have a valid result")
-      (is (= "6" out) "(ns foo.core$macros)\n(defmacro hello [x] (prn &form) `(inc ~x))\n(ns another.ns)\n(require-macros '[foo.core :refer [hello]])\n(hello (+ 2 3))\nshould return 6")
-      (reset-env! '[foo.core another.ns])))
-
   (deftest tagged-literals
     ;; AR - Don't need to test more as ClojureScript already has extensive tests on this
     (let [res (read-eval-call "#js [1 2]")
